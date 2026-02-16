@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat App</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            margin-top: 40px;
+        }
+        .container {
+            width: 350px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px gray;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+        }
+        .hidden {
+            display: none;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        .chat {
+    display: flex;
+    margin: 5px 0;
+}
+
+.left {
+    justify-content: flex-start;
+}
+
+.right {
+    justify-content: flex-end;
+}
+
+.bubble {
+    max-width: 70%;
+    padding: 8px 12px;
+    border-radius: 10px;
+}
+
+.left .bubble {
+    background: #e5e5e5;
+}
+
+.right .bubble {
+    background: #dcf8c6;
+}
+.sender {
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 3px;
+}
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- MAIN BUTTONS -->
+    <div id="mainButtons">
+        <button onclick="showLogin()">Login</button>
+        <button onclick="showSignup()">Signup</button>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signupBox" class="hidden">
+        <h3>Signup</h3>
+        <input id="su_user" placeholder="Username">
+        <input id="su_pass" type="password" placeholder="Password">
+        <button onclick="signup()">Register</button>
+        <button onclick="back()">Back</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginBox" class="hidden">
+        <h3>Login</h3>
+        <input id="li_user" placeholder="Username">
+        <input id="li_pass" type="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <button onclick="back()">Back</button>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chatBox" class="hidden">
+        <button onclick="logout()">Logout</button>
+        <h3>Chat</h3>
+        <input id="msg" placeholder="Type message">
+        <button onclick="sendMessage()">Send</button>
+        <ul id="messages"></ul>
+       
+    </div>
+
+</div>
+<script>
+let token = "";
+let currentUser = "";
+
+// UI control
+function showLogin() {
+    mainButtons.style.display = "none";
+    loginBox.classList.remove("hidden");
+}
+
+function showSignup() {
+    mainButtons.style.display = "none";
+    signupBox.classList.remove("hidden");
+}
+
+function back() {
+    signupBox.classList.add("hidden");
+    loginBox.classList.add("hidden");
+    mainButtons.style.display = "block";
+}
+
+// Signup
+function signup() {
+    fetch("/signup", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            username: su_user.value,
+            password: su_pass.value
+        })
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message || data.error));
+}
+
+// Login
+function login() {
+    fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            username: li_user.value,
+            password: li_pass.value
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.access_token) {
+            token = data.access_token;
+            currentUser = li_user.value;
+
+            loginBox.classList.add("hidden");
+            chatBox.classList.remove("hidden");
+            loadMessages();
+            messageInterval = setInterval(loadMessages, 2000);
+        } else {
+            alert("Invalid login");
+        }
+    });
+}
+
+// Send message
+function sendMessage() {
+    fetch("/chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ message: msg.value })
+    }).then(() => {
+        msg.value = "";
+        loadMessages();
+    });
+}
+function loadMessages() {
+    fetch("/chat", {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        messages.innerHTML = "";
+
+        data.forEach(m => {
+            let chatDiv = document.createElement("div");
+            chatDiv.classList.add("chat");
+
+            let bubble = document.createElement("div");
+            bubble.classList.add("bubble");
+
+            // ⭐ sender name
+            let sender = document.createElement("div");
+            sender.classList.add("sender");
+
+            if (m.username === currentUser) {
+                chatDiv.classList.add("right");
+                sender.innerText = "You";
+            } else {
+                chatDiv.classList.add("left");
+                sender.innerText = m.username;
+            }
+
+            let text = document.createElement("div");
+            text.innerText = m.message;
+
+            bubble.appendChild(sender);
+            bubble.appendChild(text);
+            chatDiv.appendChild(bubble);
+            messages.appendChild(chatDiv);
+        });
+    });
+}
+function logout() {
+    token = "";
+    currentUser = "";
+    chatBox.classList.add("hidden");
+    mainButtons.style.display = "block";
+}
+</script>
+
+</body>
+</html>
